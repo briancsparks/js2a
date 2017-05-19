@@ -4,7 +4,7 @@
   "description": "Javascript or JSON -to- anything.",
   "main": "js2a.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ava"
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/briancsparks/js2a/issues"
   },
-  "homepage": "https://github.com/briancsparks/js2a#readme"
+  "homepage": "https://github.com/briancsparks/js2a#readme",
+  "dependencies": {
+    "sgsg": "^0.9.1"
+  }
 }
