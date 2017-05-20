@@ -9,14 +9,16 @@ var path              = require('path');
 
 var indent            = helpers.indent;
 var simple            = helpers.simple;
+var single            = helpers.single;
 var addSimpleSnake    = helpers.addSimpleSnake;
+var addSingleWord     = helpers.addSingleWord;
 
 var nginx = {
   write: {}
 };
 
 nginx.write.root = function(obj_) {
-  var obj    = obj_;
+  var obj    = sg.deepCopy(obj_);
   var result = [];
   var level = 0;
 
@@ -41,6 +43,7 @@ nginx.write.root = function(obj_) {
 
     level += 1;
     http = simple(http, level, result, 'include');
+    http = simple(http, level, result, 'default_type');
     http = simple(http, level, result, 'client_body_temp_path');
     http = simple(http, level, result, 'client_max_body_size');
     http = simple(http, level, result, 'deny');
@@ -67,6 +70,28 @@ nginx.write.root = function(obj_) {
 
         if (_.keys(listenSsl).length > 0) { console.error('listenSsl remainder', listenSsl); }
 
+      });
+
+      server = simple(server, level, result, 'include');
+console.error('server', server);
+
+      server = helpers.extract(server, 'location', function(location_) {
+        var location = location_;
+
+        location = helpers.extract(location, 'loc', function(loc) {
+          result.push(indent(level, 'location '+loc+' {'));
+        });
+
+        level += 1;
+        location = helpers.extract(location, 'items', function(items_) {
+          var items = items_;
+          items = single(items, level, result, 'internal');
+        });
+        level -= 1;
+
+console.error('location', location);
+
+        result.push(indent(level, '}'));
       });
 
       level -= 1;
@@ -122,12 +147,22 @@ nginx.server = function(x) {
   return {server:x};
 };
 
+nginx.location = function(loc, x) {
+  if (_.isFunction(x)) {
+    var fn = x;
+    var items = fn();
+    return ["location {", items, "}"];
+  }
+  return {location : {loc: loc, items: x}};
+};
+
 //------------------------------------------------------------
 addSimpleSnake(nginx, 'worker-connections');
 addSimpleSnake(nginx, 'worker-processes');
 
 // http
 addSimpleSnake(nginx, 'include');
+addSimpleSnake(nginx, 'default-type');
 addSimpleSnake(nginx, 'client-body-temp-path');
 addSimpleSnake(nginx, 'client-max-body-size');
 addSimpleSnake(nginx, 'deny');
@@ -141,6 +176,7 @@ addSimpleSnake(nginx, 'server-name');
 addSimpleSnake(nginx, 'root');
 addSimpleSnake(nginx, 'access-log');
 addSimpleSnake(nginx, 'listen');
+addSingleWord(nginx, 'internal');
 
 nginx.listenSsl = function(port_, options_) {
   var options       = options_ || {};

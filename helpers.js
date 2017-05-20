@@ -14,7 +14,8 @@ helpers.extract = function(obj, name, fn) {
 
     _.each(obj, function(item_) {
       var item = item_;
-      if (!sg.isObject(item)) { remainder.push(item); return; }
+      if (_.isString(item) && item === name)  { fn(item); return; }
+      if (!sg.isObject(item))                 { remainder.push(item); return; }
 
       /* otherwise */
       item = helpers.extract(item, name, fn);
@@ -51,9 +52,21 @@ helpers.simple = function(obj, level, result, name) {
   });
 };
 
+helpers.single = function(obj, level, result, name) {
+  return helpers.extract(obj, name, function(value) {
+    result.push(indent(level, sg.toSnakeCase(name)+";"));
+  });
+};
+
 helpers.addSimpleSnake = function(mod, name) {
   mod[sg.toCamelCase(name)] = function(value) {
     return sg.kv(sg.toSnakeCase(name), _.toArray(arguments).join(' '));
+  };
+};
+
+helpers.addSingleWord = function(mod, name) {
+  mod[sg.toCamelCase(name)] = function() {
+    return sg.toSnakeCase(name);
   };
 };
 
