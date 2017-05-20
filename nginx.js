@@ -73,7 +73,6 @@ nginx.write.root = function(obj_) {
       });
 
       server = simple(server, level, result, 'include');
-console.error('server', server);
 
       server = helpers.extract(server, 'location', function(location_) {
         var location = location_;
@@ -88,8 +87,6 @@ console.error('server', server);
           items = single(items, level, result, 'internal');
         });
         level -= 1;
-
-console.error('location', location);
 
         result.push(indent(level, '}'));
       });

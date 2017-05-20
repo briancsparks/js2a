@@ -9,8 +9,36 @@ var ng        = js2a.nginx;
 var findLine  = helpers.findLine;
 
 // TODO:
+//  block
 //  http.upstream
 //  map
+
+
+test('Can do multiple servers', function(t) {
+  var confJson = [
+    ng.http([
+      ng.server([
+        ng.serverName('sub.example.com'),
+      ]),
+      ng.server([
+        ng.serverName('sub2.example.com'),
+      ])
+    ]),
+    ""
+  ];
+
+  var json  = sg.deepCopy(confJson);
+
+  var conf  = js2a.to(confJson, ng);
+  var lines = conf.split('\n');
+
+  t.not(conf.length, 0);
+  t.not(lines = findLine(lines, /^http [{]$/), false);                                                                // }
+  t.not(lines = findLine(lines, /^  server [{]$/), false);                                                            // }
+  t.not(lines = findLine(lines, /^    server_name sub[.]example[.]com;$/), false);
+  t.not(lines = findLine(lines, /^  server [{]$/), false);                                                            // }
+  t.not(lines = findLine(lines, /^    server_name sub2[.]example[.]com;$/), false);
+});
 
 test('Can do one of each', function(t) {
   var confJson = [
