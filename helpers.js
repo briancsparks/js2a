@@ -35,7 +35,7 @@ helpers.extract = function(obj, name, fn) {
   return obj;
 };
 
-helpers.indent = function(level, str) {
+var indent = helpers.indent = function(level, str) {
   var result = '';
   var i;
   for (i = 0; i < level; ++i) {
@@ -43,6 +43,18 @@ helpers.indent = function(level, str) {
   }
   result += str;
   return result;
+};
+
+helpers.simple = function(obj, level, result, name) {
+  return helpers.extract(obj, name, function(value) {
+    result.push(indent(level, sg.toSnakeCase(name)+" "+value+";"));
+  });
+};
+
+helpers.addSimpleSnake = function(mod, name) {
+  mod[sg.toCamelCase(name)] = function(value) {
+    return sg.kv(sg.toSnakeCase(name), _.toArray(arguments).join(' '));
+  };
 };
 
 _.each(helpers, function(value, key) {
