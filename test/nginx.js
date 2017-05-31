@@ -10,6 +10,9 @@ var findLine  = helpers.findLine;
 
 // TODO:
 //  block
+//  singleLine
+//  comment
+//  blankLine
 //  http.upstream
 //  map
 
