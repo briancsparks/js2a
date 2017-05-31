@@ -241,25 +241,10 @@ nginx.Nginx = function() {
     return {location : {loc: loc, items: fn(this)}};
   };
 
-nginx.location = function(loc, x) {
-  if (_.isFunction(x)) {
-    var fn = x;
-    var items = fn();
-    return ["location {", items, "}"];
-  }
-  return {location : {loc: loc, items: x}};
-};
-
   self.workerConnections = function(fn_) {
     var fn = ensureFn(fn_);
     return nginx.workerConnections(fn(this));
   };
-
-  //self.logFormat = function(fn_) {
-  //  var fn      = ensureFn(fn_);
-  //  var result  = fn(this);
-  //  return nginx.logFormat.apply(this, result);
-  //};
 
   // Copy all the stuff from nginx that makes sense here
   var names = 'workerProcesses,include,defaultType,clientBodyTempPath,clientMaxBodySize,' +
