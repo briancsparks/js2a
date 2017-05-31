@@ -70,6 +70,17 @@ helpers.addSingleWord = function(mod, name) {
   };
 };
 
+var noop = function(x) {
+  if (sg.isnt(x)) { return {}; }
+  return x;
+};
+
+helpers.ensureFn = function(fn) {
+  if (sg.isnt(fn))        { return noop; }
+  if (!_.isFunction(fn))  { return noop; }
+  return fn;
+};
+
 _.each(helpers, function(value, key) {
   exports[key] = value;
 });

@@ -13,6 +13,109 @@ var findLine  = helpers.findLine;
 //  http.upstream
 //  map
 
+test('Nginx can do one of each', function(t) {
+
+  var ngx   = new ng.Nginx();
+  var conf  = ngx.conf(function(ngx) {
+    return [
+      ngx.workerProcesses(function(ngx) { return 2; }),
+      ngx.events(function(ngx) {
+        return ngx.workerConnections(function(ngx) { return 1024; });
+      }),
+      ngx.http(function(ngx) {
+        return [
+          ngx.include(function(ngx)             { return 'mime.types'; }),
+          ngx.defaultType(function(ngx)         { return 'application/octet-stream'; }),
+          ngx.clientBodyTempPath(function(ngx)  { return '/var/tmp/nginx/client_body_temp'; }),
+          ngx.clientMaxBodySize(function(ngx)   { return '25M'; }),
+          ngx.deny(function(ngx)                { return '8.28.16.0/24'; }),
+          ngx.logFormat(function(ngx)           { return ['test', '"a" - "$foobar"']; }),
+
+          ngx.server(function(ngx) {
+            return [
+              ngx.serverName(function(ngx)      { return 'sub.example.com'; }),
+              ngx.root(function(ngx)            { return '/var/www/sub'; }),
+              ngx.accessLog(function(ngx)       { return ['/var/log/nginx/hq.log', 'main']; }),
+              ngx.listen(function(ngx)          { return 80; }),
+              ngx.listenSsl(function(ngx)       { return [1443, {default: true}]; }),
+              ngx.include(function(ngx)         { return '/etc/nginx/routes/sub.example.com'; }),
+
+              ngx.location('/nginx_status', function(ngx) {
+                return [
+                  ngx.internal(function(ngx)    { return; })
+                ];
+              })
+            ];
+          })
+        ];
+      })
+    ];
+  });
+
+  console.error(conf);
+
+  var lines = conf.split('\n');
+
+  t.not(conf.length, 0);
+  t.not(lines = findLine(lines, /^worker_processes 2;$/), false);
+  t.not(lines = findLine(lines, /^events [{]$/), false);                                                              // }
+  t.not(lines = findLine(lines, /^  worker_connections 1024;$/), false);
+  t.not(lines = findLine(lines, /^http [{]$/), false);                                                                // }
+  t.not(lines = findLine(lines, /^  include mime[.]types;$/), false);
+  t.not(lines = findLine(lines, /^  default_type application[/]octet-stream;$/), false);
+  t.not(lines = findLine(lines, /^  client_body_temp_path [/]var[/]tmp[/]nginx[/]client_body_temp;$/), false);
+  t.not(lines = findLine(lines, /^  client_max_body_size 25M;$/), false);
+  t.not(lines = findLine(lines, /^  deny 8[.]28[.]16[.]0[/]24;$/), false);
+  t.not(lines = findLine(lines, /^  log_format test '"a" - "[$]foobar"';$/), false);
+  t.not(lines = findLine(lines, /^  server [{]$/), false);                                                            // }
+  t.not(lines = findLine(lines, /^    server_name sub[.]example[.]com;$/), false);
+  t.not(lines = findLine(lines, /^    root [/]var[/]www[/]sub;$/), false);
+  t.not(lines = findLine(lines, /^    access_log [/]var[/]log[/]nginx[/]hq[.]log main;$/), false);
+  t.not(lines = findLine(lines, /^    listen 80;$/), false);
+  t.not(lines = findLine(lines, /^    listen 1443 ssl default;$/), false);
+  t.not(lines = findLine(lines, /^    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;$/), false);
+  t.not(lines = findLine(lines, /^    ssl_ciphers HIGH:!aNULL:!MD5;$/), false);
+  t.not(lines = findLine(lines, /^    ssl_certificate [/]Users[/]sparksb[/]tmp[/]nginx[/]certs[/]server.crt;$/), false);
+  t.not(lines = findLine(lines, /^    ssl_certificate_key [/]Users[/]sparksb[/]tmp[/]nginx[/]certs[/]server.key;$/), false);
+  t.not(lines = findLine(lines, /^    include [/]etc[/]nginx[/]routes[/]sub[.]example[.]com;$/), false);
+  t.not(lines = findLine(lines, /^    location [/]nginx_status [{]$/), false);                                        // }
+  t.not(lines = findLine(lines, /^      internal;$/), false);
+});
+
+test('Nginx can combine functions with non-functions', function(t) {
+
+  var ngx   = new ng.Nginx();
+  var conf  = ngx.conf(function(ngx) {
+    return ngx.events(function(ngx) {
+      return ng.workerConnections(1024);
+    });
+  });
+
+  var lines = conf.split('\n');
+
+  t.not(conf.length, 0);
+  t.not(lines = findLine(lines, /^events [{]$/), false);                                                              // }
+  t.not(lines = findLine(lines, /^  worker_connections 1024;$/), false);
+});
+
+test('Nginx can use functions', function(t) {
+
+  var ngx   = new ng.Nginx();
+  var conf  = ngx.conf(function(ngx) {
+    return ngx.events(function(ngx) {
+      return ngx.workerConnections(function(ngx) {
+        return 1024;
+      });
+    });
+  });
+
+  var lines = conf.split('\n');
+
+  t.not(conf.length, 0);
+  t.not(lines = findLine(lines, /^events [{]$/), false);                                                              // }
+  t.not(lines = findLine(lines, /^  worker_connections 1024;$/), false);
+});
+
 
 test('Can do multiple servers', function(t) {
   var confJson = [
@@ -73,7 +176,7 @@ test('Can do one of each', function(t) {
   var conf  = js2a.to(confJson, ng);
   var lines = conf.split('\n');
 
-  console.error(conf);
+//  console.error(conf);
 
   t.not(conf.length, 0);
   t.not(lines = findLine(lines, /^worker_processes 2;$/), false);

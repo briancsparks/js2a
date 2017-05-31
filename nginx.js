@@ -12,6 +12,7 @@ var simple            = helpers.simple;
 var single            = helpers.single;
 var addSimpleSnake    = helpers.addSimpleSnake;
 var addSingleWord     = helpers.addSingleWord;
+var ensureFn          = helpers.ensureFn;
 
 var nginx = {
   write: {}
@@ -26,7 +27,7 @@ nginx.write.root = function(obj_) {
 
   obj = helpers.extract(obj, 'events', function(events_) {
     var events = events_;
-    result.push(indent(level, 'events {'));
+    result.push(indent(level, 'events {'));                                                   // }
 
     level += 1;
     events = simple(events, level, result, 'worker_connections');
@@ -39,7 +40,7 @@ nginx.write.root = function(obj_) {
 
   obj = helpers.extract(obj, 'http', function(http_) {
     var http = http_;
-    result.push(indent(level, 'http {'));
+    result.push(indent(level, 'http {'));                                                   // }
 
     level += 1;
     http = simple(http, level, result, 'include');
@@ -51,7 +52,7 @@ nginx.write.root = function(obj_) {
 
     http = helpers.extract(http, 'server', function(server_) {
       var server = server_;
-      result.push(indent(level, 'server {'));
+      result.push(indent(level, 'server {'));                                                   // }
 
       level += 1;
       server = simple(server, level, result, 'server_name');
@@ -78,7 +79,7 @@ nginx.write.root = function(obj_) {
         var location = location_;
 
         location = helpers.extract(location, 'loc', function(loc) {
-          result.push(indent(level, 'location '+loc+' {'));
+          result.push(indent(level, 'location '+loc+' {'));                                                   // }
         });
 
         level += 1;
@@ -119,18 +120,14 @@ nginx.write.root = function(obj_) {
 //------------------------------------------------------------
 nginx.events = function(x) {
   if (_.isFunction(x)) {
-    var fn = x;
-    var items = fn();
-    return ["events {", items, "}"];
+    return {events: x()};
   }
   return {events:x};
 };
 
 nginx.http = function(x) {
   if (_.isFunction(x)) {
-    var fn = x;
-    var items = fn();
-    return ["http {", items, "}"];
+    return {http: x()};
   }
   return {http:x};
 };
@@ -206,12 +203,83 @@ nginx.listenSsl = function(port_, options_) {
 //------------------------------------------------------------
 nginx.conf = function(obj) {
   return nginx.write.root(obj);
-  var result = '';
-
-  result += obj.join('\n');
-
-  return result;
 };
+
+//------------------------------------------------------------
+
+/**
+ *  c-tor for Nginx object.
+ */
+nginx.Nginx = function() {
+  var self    = this;
+  var payload = [];
+
+  self.conf = function(fn_) {
+    var fn      = ensureFn(fn_);
+    var config  = nginx.conf(fn(this));
+
+    return config;
+  };
+
+  self.events = function(fn_) {
+    var fn = ensureFn(fn_);
+    return {events: fn(this)};
+  };
+
+  self.http = function(fn_) {
+    var fn = ensureFn(fn_);
+    return {http: fn(this)};
+  };
+
+  self.server = function(fn_) {
+    var fn = ensureFn(fn_);
+    return {server: fn(this)};
+  };
+
+  self.location = function(loc, fn_) {
+    var fn = ensureFn(fn_);
+    return {location : {loc: loc, items: fn(this)}};
+  };
+
+nginx.location = function(loc, x) {
+  if (_.isFunction(x)) {
+    var fn = x;
+    var items = fn();
+    return ["location {", items, "}"];
+  }
+  return {location : {loc: loc, items: x}};
+};
+
+  self.workerConnections = function(fn_) {
+    var fn = ensureFn(fn_);
+    return nginx.workerConnections(fn(this));
+  };
+
+  //self.logFormat = function(fn_) {
+  //  var fn      = ensureFn(fn_);
+  //  var result  = fn(this);
+  //  return nginx.logFormat.apply(this, result);
+  //};
+
+  // Copy all the stuff from nginx that makes sense here
+  var names = 'workerProcesses,include,defaultType,clientBodyTempPath,clientMaxBodySize,' +
+              'deny,logFormat,serverName,root,accessLog,listen,listenSsl,internal';
+  _.each(names.split(','), function(name) {
+    self[name] = function(fn_) {
+      var fn      = ensureFn(fn_);
+      var result  = fn(this);
+
+      if (!_.isArray(result)) {
+        result = [result];
+      }
+
+      return nginx[name].apply(this, result);
+    };
+  });
+
+};
+
+
 
 _.each(nginx, function(value, key) {
   exports[key] = value;
