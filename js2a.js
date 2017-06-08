@@ -26,7 +26,6 @@ js2a.to = function(obj, converter) {
   return converter.write.root(obj);
 };
 
-
 _.each(js2a, function(value, key) {
   exports[key] = value;
 });

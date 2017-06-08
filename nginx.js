@@ -13,12 +13,74 @@ var single            = helpers.single;
 var addSimpleSnake    = helpers.addSimpleSnake;
 var addSingleWord     = helpers.addSingleWord;
 var ensureFn          = helpers.ensureFn;
+var each              = helpers.each;
 
 var nginx = {
   write: {}
 };
 
-nginx.write.root = function(obj_) {
+nginx.write.root = function(ngxJson) {
+
+  var result = [];
+
+  var handler = {};
+  var handleItem = function(level, name, item) {
+    if (name in handler) {
+      return handler[name](level, name, item);
+    } else {
+      if (_.isString(item)) {
+        result.push(indent(level, [name, item].join(' ')+';'));
+      } else if (_.isObject(item)) {
+        result.push(indent(level, name+' {'));             // }
+        each(level+1, item, handleItem);
+        result.push(indent(level, '}'));
+      } else {
+        result.push(indent(level, name+';'));
+      }
+    }
+  };
+
+  handler.blankLine = function(level, name, item) {
+    result.push("");
+  };
+
+  handler.singleLine = function(level, name, item) {
+    result.push(indent(level, item.join(' ')+';'));
+  };
+
+  handler.comment = function(level, name, item) {
+    result.push("");
+    result.push(indent(level, '# '+item));
+  };
+
+  handler.listenSsl = function(level, name, item) {
+    each(level, item, handleItem);
+  };
+
+  handler.block = function(level, name, item) {
+    each(level, item, handleItem);
+  };
+
+  handler.location = function(level, name, item_) {
+    var item = helpers.extract(item_, 'loc', function(loc) {
+      result.push(indent(level, 'location '+loc+' {'));                                                   // }
+    });
+
+    item = helpers.extract(item, 'items', function(items_) {
+      var items = items_;
+      each(level+1, items, handleItem);
+    });
+
+    result.push(indent(level, '}'));
+  };
+
+  each(0, ngxJson, handleItem);
+
+  return result.join('\n');
+};
+
+// TODO: this is no longer needed
+nginx.write.rootX = function(obj_) {
   var obj    = sg.deepCopy(obj_);
   var result = [];
   var level = 0;
@@ -118,6 +180,13 @@ nginx.write.root = function(obj_) {
 
 
 //------------------------------------------------------------
+nginx.block = function(x) {
+  if (_.isFunction(x)) {
+    return {block: x()};
+  }
+  return {block:x};
+};
+
 nginx.events = function(x) {
   if (_.isFunction(x)) {
     return {events: x()};
@@ -153,6 +222,12 @@ nginx.location = function(loc, x) {
 //------------------------------------------------------------
 addSimpleSnake(nginx, 'worker-connections');
 addSimpleSnake(nginx, 'worker-processes');
+addSimpleSnake(nginx, 'comment');
+addSimpleSnake(nginx, 'blankLine');
+
+nginx.singleLine = function() {
+  return {singleLine: _.toArray(arguments)};
+};
 
 // http
 addSimpleSnake(nginx, 'include');
@@ -212,13 +287,30 @@ nginx.conf = function(obj) {
  */
 nginx.Nginx = function() {
   var self    = this;
-  var payload = [];
+
+  self.payload = [];
 
   self.conf = function(fn_) {
     var fn      = ensureFn(fn_);
     var config  = nginx.conf(fn(this));
 
     return config;
+  };
+
+  self.json = function(fn_) {
+    var fn      = ensureFn(fn_);
+
+    self.payload = fn(this);
+    return self.payload;
+  };
+
+  self.conf2 = function(fn_) {
+    return nginx.write.root(self.json(fn_));
+  };
+
+  self.block = function(fn_) {
+    var fn = ensureFn(fn_);
+    return {block: fn(this)};
   };
 
   self.events = function(fn_) {
@@ -248,7 +340,8 @@ nginx.Nginx = function() {
 
   // Copy all the stuff from nginx that makes sense here
   var names = 'workerProcesses,include,defaultType,clientBodyTempPath,clientMaxBodySize,' +
-              'deny,logFormat,serverName,root,accessLog,listen,listenSsl,internal';
+              'deny,logFormat,serverName,root,accessLog,listen,listenSsl,internal,' +
+              'comment,blankLine,singleLine';
   _.each(names.split(','), function(name) {
     self[name] = function(fn_) {
       var fn      = ensureFn(fn_);

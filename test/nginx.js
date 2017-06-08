@@ -18,8 +18,10 @@ var findLine  = helpers.findLine;
 
 test('Nginx can do one of each', function(t) {
 
+  var blk;
+
   var ngx   = new ng.Nginx();
-  var conf  = ngx.conf(function(ngx) {
+  var theNginx = function(ngx) {
     return [
       ngx.workerProcesses(function(ngx) { return 2; }),
       ngx.events(function(ngx) {
@@ -29,11 +31,21 @@ test('Nginx can do one of each', function(t) {
         return [
           ngx.include(function(ngx)             { return 'mime.types'; }),
           ngx.defaultType(function(ngx)         { return 'application/octet-stream'; }),
-          ngx.clientBodyTempPath(function(ngx)  { return '/var/tmp/nginx/client_body_temp'; }),
-          ngx.clientMaxBodySize(function(ngx)   { return '25M'; }),
+
+          blk = ngx.block(function(ngx) {
+            return [
+              ngx.clientBodyTempPath(function(ngx)  { return '/var/tmp/nginx/client_body_temp'; }),
+              ngx.clientMaxBodySize(function(ngx)   { return '25M'; })
+            ];
+          }),
+
           ngx.deny(function(ngx)                { return '8.28.16.0/24'; }),
           ngx.logFormat(function(ngx)           { return ['test', '"a" - "$foobar"']; }),
 
+          ng.singleLine('a', 'silly', 'item'),
+          ngx.singleLine(function(ngx)          { return ['a', 'silly', 'item', 2]; }),
+
+          ng.comment('Here are the servers'),
           ngx.server(function(ngx) {
             return [
               ngx.serverName(function(ngx)      { return 'sub.example.com'; }),
@@ -53,7 +65,11 @@ test('Nginx can do one of each', function(t) {
         ];
       })
     ];
-  });
+  };
+
+  var obj = ngx.json(theNginx);
+  blk.block.push(ng.deny('2.3.4.5/32'));
+  var conf = ng.write.root(obj);
 
   console.error(conf);
 
@@ -68,6 +84,7 @@ test('Nginx can do one of each', function(t) {
   t.not(lines = findLine(lines, /^  default_type application[/]octet-stream;$/), false);
   t.not(lines = findLine(lines, /^  client_body_temp_path [/]var[/]tmp[/]nginx[/]client_body_temp;$/), false);
   t.not(lines = findLine(lines, /^  client_max_body_size 25M;$/), false);
+  t.not(lines = findLine(lines, /^  deny 2[.]3[.]4[.]5[/]32;$/), false);
   t.not(lines = findLine(lines, /^  deny 8[.]28[.]16[.]0[/]24;$/), false);
   t.not(lines = findLine(lines, /^  log_format test '"a" - "[$]foobar"';$/), false);
   t.not(lines = findLine(lines, /^  server [{]$/), false);                                                            // }
