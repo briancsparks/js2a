@@ -100,7 +100,11 @@ helpers.single = function(obj, level, result, name) {
  */
 helpers.addSimpleSnake = function(mod, name) {
   mod[sg.toCamelCase(name)] = function(value) {
-    return sg.kv(sg.toSnakeCase(name), _.toArray(arguments).join(' '));
+    var args = _.map(arguments, function(arg) {
+      if (_.isString(arg) && arg.length === 0) { return '""'; }
+      return arg;
+    });
+    return sg.kv(sg.toSnakeCase(name), args.join(' '));
   };
 };
 

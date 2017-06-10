@@ -15,6 +15,8 @@ var addSingleWord     = helpers.addSingleWord;
 var ensureFn          = helpers.ensureFn;
 var each              = helpers.each;
 
+var onOff;
+
 var nginx = {
   write: {}
 };
@@ -40,17 +42,21 @@ nginx.write.root = function(ngxJson) {
     }
   };
 
-  handler.blankLine = function(level, name, item) {
+  handler.blankLine = handler.blank_line = function(level, name, item) {
     result.push("");
   };
 
-  handler.singleLine = function(level, name, item) {
+  handler.singleLine = handler.single_line = function(level, name, item) {
     result.push(indent(level, item.join(' ')+';'));
   };
 
   handler.comment = function(level, name, item) {
     result.push("");
     result.push(indent(level, '# '+item));
+  };
+
+  handler.proxy_redirect = function(level, name, item) {
+    result.push(indent(level, [name, onOff(item)].join(' ')+';'));
   };
 
   handler.listenSsl = function(level, name, item) {
@@ -76,112 +82,12 @@ nginx.write.root = function(ngxJson) {
 
   var json = [];
 
-  //json.push('# vim: filetype=nginx:');
   json.push({comment:'vim: filetype=nginx:'});
   json.push({blankLine:[]});
   json = json.concat(ngxJson);
   each(0, json, handleItem);
 
   return result.join('\n');
-};
-
-// TODO: this is no longer needed
-nginx.write.rootX = function(obj_) {
-  var obj    = sg.deepCopy(obj_);
-  var result = [];
-  var level = 0;
-
-  obj = simple(obj, level, result, 'worker_processes');
-
-  obj = helpers.extract(obj, 'events', function(events_) {
-    var events = events_;
-    result.push(indent(level, 'events {'));                                                   // }
-
-    level += 1;
-    events = simple(events, level, result, 'worker_connections');
-    level -= 1;
-
-    if (events.length > 0) { console.error('events remainder', events); }
-
-    result.push(indent(level, '}'));
-  });
-
-  obj = helpers.extract(obj, 'http', function(http_) {
-    var http = http_;
-    result.push(indent(level, 'http {'));                                                   // }
-
-    level += 1;
-    http = simple(http, level, result, 'include');
-    http = simple(http, level, result, 'default_type');
-    http = simple(http, level, result, 'client_body_temp_path');
-    http = simple(http, level, result, 'client_max_body_size');
-    http = simple(http, level, result, 'deny');
-    http = simple(http, level, result, 'log_format');
-
-    http = helpers.extract(http, 'server', function(server_) {
-      var server = server_;
-      result.push(indent(level, 'server {'));                                                   // }
-
-      level += 1;
-      server = simple(server, level, result, 'server_name');
-      server = simple(server, level, result, 'root');
-      server = simple(server, level, result, 'access_log');
-      server = simple(server, level, result, 'listen');
-
-      server = helpers.extract(server, 'listenSsl', function(listenSsl_) {
-        var listenSsl = listenSsl_;
-
-        listenSsl = simple(listenSsl, level, result, 'listen');
-        listenSsl = simple(listenSsl, level, result, 'ssl_protocols');
-        listenSsl = simple(listenSsl, level, result, 'ssl_ciphers');
-        listenSsl = simple(listenSsl, level, result, 'ssl_certificate');
-        listenSsl = simple(listenSsl, level, result, 'ssl_certificate_key');
-
-        if (_.keys(listenSsl).length > 0) { console.error('listenSsl remainder', listenSsl); }
-
-      });
-
-      server = simple(server, level, result, 'include');
-
-      server = helpers.extract(server, 'location', function(location_) {
-        var location = location_;
-
-        location = helpers.extract(location, 'loc', function(loc) {
-          result.push(indent(level, 'location '+loc+' {'));                                                   // }
-        });
-
-        level += 1;
-        location = helpers.extract(location, 'items', function(items_) {
-          var items = items_;
-          items = single(items, level, result, 'internal');
-        });
-        level -= 1;
-
-        result.push(indent(level, '}'));
-      });
-
-      level -= 1;
-
-      if (server.length > 0) { console.error('server remainder', server); }
-
-      result.push(indent(level, '}'));
-    });
-    level -= 1;
-
-    if (http.length > 0) { console.error('http remainder', http); }
-
-    result.push(indent(level, '}'));
-  });
-
-  // Clear any empty items
-  obj = _.filter(obj, function(item) { return item; });
-
-  if (obj.length > 0) { console.error('result remainder', obj); }
-
-  result = result.concat(obj);
-  result = result.join('\n');
-
-  return result;
 };
 
 
@@ -226,6 +132,7 @@ nginx.location = function(loc, x) {
 };
 
 //------------------------------------------------------------
+addSimpleSnake(nginx, 'set');
 addSimpleSnake(nginx, 'worker-connections');
 addSimpleSnake(nginx, 'worker-processes');
 addSimpleSnake(nginx, 'comment');
@@ -251,7 +158,6 @@ addSimpleSnake(nginx, 'server-name');
 addSimpleSnake(nginx, 'root');
 addSimpleSnake(nginx, 'access-log');
 addSimpleSnake(nginx, 'listen');
-addSingleWord(nginx, 'internal');
 
 nginx.listenSsl = function(port_, options_) {
   var options       = options_ || {};
@@ -280,6 +186,18 @@ nginx.listenSsl = function(port_, options_) {
 
   return {listenSsl: result};
 };
+
+// location
+addSingleWord(nginx, 'internal');
+addSimpleSnake(nginx, 'proxy-connect-timeout');
+addSimpleSnake(nginx, 'proxy-send-timeout');
+addSimpleSnake(nginx, 'proxy-read-timeout');
+addSimpleSnake(nginx, 'send-timeout');
+addSimpleSnake(nginx, 'proxy-redirect');
+addSimpleSnake(nginx, 'proxy-set-header');
+addSimpleSnake(nginx, 'proxy-http-version');
+addSimpleSnake(nginx, 'proxy-method');
+addSimpleSnake(nginx, 'proxy-pass');
 
 //------------------------------------------------------------
 nginx.conf = function(obj) {
@@ -347,7 +265,8 @@ nginx.Nginx = function() {
   // Copy all the stuff from nginx that makes sense here
   var names = 'workerProcesses,include,defaultType,clientBodyTempPath,clientMaxBodySize,' +
               'deny,logFormat,serverName,root,accessLog,listen,listenSsl,internal,' +
-              'comment,blankLine,singleLine';
+              'comment,blankLine,singleLine,set,proxyConnectTimeout,proxySendTimeout,proxyReadTimeout,' +
+              'sendTimeout,proxyRedirect,proxySetHeader,proxyHttpVersion,proxyMethod,proxyPass';
   _.each(names.split(','), function(name) {
     self[name] = function(fn_) {
       var fn      = ensureFn(fn_);
@@ -363,7 +282,14 @@ nginx.Nginx = function() {
 
 };
 
+onOff = function(x) {
+  if (x === false)    { return 'off'; }
+  if (x === true)     { return 'on'; }
+  if (x === 'false')  { return 'off'; }
+  if (x === 'true')   { return 'on'; }
 
+  return 'off';
+};
 
 _.each(nginx, function(value, key) {
   exports[key] = value;

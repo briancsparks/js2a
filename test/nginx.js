@@ -9,10 +9,6 @@ var ng        = js2a.nginx;
 var findLine  = helpers.findLine;
 
 // TODO:
-//  block
-//  singleLine
-//  comment
-//  blankLine
 //  http.upstream
 //  map
 
@@ -57,7 +53,18 @@ test('Nginx can do one of each', function(t) {
 
               ngx.location('/nginx_status', function(ngx) {
                 return [
-                  ngx.internal(function(ngx)    { return; })
+                  ngx.internal(function(ngx)    { return; }),
+                  ng.proxyConnectTimeout(5000),
+                  ng.proxySendTimeout(5000),
+                  ng.proxyReadTimeout(5000),
+                  ng.sendTimeout(5000),
+                  ng.proxyRedirect(false),
+                  ng.proxySetHeader('X-Real-IP', '$remote_addr'),
+                  ng.proxySetHeader('Connection', ''),
+                  ng.proxyHttpVersion('1.1'),
+                  ng.proxyMethod('HEAD'),
+                  ng.set('$other_uri', '$1'),
+                  ng.proxyPass('http://$other_uri')
                 ];
               })
             ];
@@ -100,6 +107,17 @@ test('Nginx can do one of each', function(t) {
   t.not(lines = findLine(lines, /^    include [/]etc[/]nginx[/]routes[/]sub[.]example[.]com;$/), false);
   t.not(lines = findLine(lines, /^    location [/]nginx_status [{]$/), false);                                        // }
   t.not(lines = findLine(lines, /^      internal;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_connect_timeout 5000;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_send_timeout 5000;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_read_timeout 5000;$/), false);
+  t.not(lines = findLine(lines, /^      send_timeout 5000;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_redirect off;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_set_header X-Real-IP [$]remote_addr;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_set_header Connection "";$/), false);
+  t.not(lines = findLine(lines, /^      proxy_http_version 1.1;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_method HEAD;$/), false);
+  t.not(lines = findLine(lines, /^      set [$]other_uri [$]1;$/), false);
+  t.not(lines = findLine(lines, /^      proxy_pass http:[/][/][$]other_uri;$/), false);
 });
 
 test('Nginx can combine functions with non-functions', function(t) {
