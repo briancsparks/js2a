@@ -74,7 +74,13 @@ nginx.write.root = function(ngxJson) {
     result.push(indent(level, '}'));
   };
 
-  each(0, ngxJson, handleItem);
+  var json = [];
+
+  //json.push('# vim: filetype=nginx:');
+  json.push({comment:'vim: filetype=nginx:'});
+  json.push({blankLine:[]});
+  json = json.concat(ngxJson);
+  each(0, json, handleItem);
 
   return result.join('\n');
 };
