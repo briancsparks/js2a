@@ -60,6 +60,7 @@ nginx.write.root = function(ngxJson) {
   };
 
   handler.listenSsl = function(level, name, item) {
+    result.push("");
     each(level, item, handleItem);
   };
 
@@ -68,6 +69,7 @@ nginx.write.root = function(ngxJson) {
   };
 
   handler.location = function(level, name, item_) {
+    result.push("");
     var item = helpers.extract(item_, 'loc', function(loc) {
       result.push(indent(level, 'location '+loc+' {'));                                                   // }
     });
@@ -133,6 +135,7 @@ nginx.location = function(loc, x) {
 
 //------------------------------------------------------------
 addSimpleSnake(nginx, 'set');
+addSimpleSnake(nginx, 'user');
 addSimpleSnake(nginx, 'worker-connections');
 addSimpleSnake(nginx, 'worker-processes');
 addSimpleSnake(nginx, 'comment');
@@ -157,6 +160,7 @@ nginx.logFormat = function(name, value) {
 addSimpleSnake(nginx, 'server-name');
 addSimpleSnake(nginx, 'root');
 addSimpleSnake(nginx, 'access-log');
+addSimpleSnake(nginx, 'try-files');
 addSimpleSnake(nginx, 'listen');
 
 nginx.listenSsl = function(port_, options_) {
@@ -263,8 +267,8 @@ nginx.Nginx = function() {
   };
 
   // Copy all the stuff from nginx that makes sense here
-  var names = 'workerProcesses,include,defaultType,clientBodyTempPath,clientMaxBodySize,' +
-              'deny,logFormat,serverName,root,accessLog,listen,listenSsl,internal,' +
+  var names = 'user,workerProcesses,include,defaultType,clientBodyTempPath,clientMaxBodySize,' +
+              'deny,logFormat,serverName,root,accessLog,listen,listenSsl,internal,tryFiles' +
               'comment,blankLine,singleLine,set,proxyConnectTimeout,proxySendTimeout,proxyReadTimeout,' +
               'sendTimeout,proxyRedirect,proxySetHeader,proxyHttpVersion,proxyMethod,proxyPass';
   _.each(names.split(','), function(name) {
@@ -283,10 +287,13 @@ nginx.Nginx = function() {
 };
 
 onOff = function(x) {
-  if (x === false)    { return 'off'; }
+  if (x === 'on')     { return 'on'; }
   if (x === true)     { return 'on'; }
-  if (x === 'false')  { return 'off'; }
   if (x === 'true')   { return 'on'; }
+
+  if (x === 'off')    { return 'off'; }
+  if (x === false)    { return 'off'; }
+  if (x === 'false')  { return 'off'; }
 
   return 'off';
 };

@@ -19,7 +19,8 @@ test('Nginx can do one of each', function(t) {
   var ngx   = new ng.Nginx();
   var theNginx = function(ngx) {
     return [
-      ngx.workerProcesses(function(ngx) { return 2; }),
+      ngx.user((ngx) =>                         { return [process.env.USER, 'staff']; }),
+      ngx.workerProcesses(function(ngx)         { return 2; }),
       ngx.events(function(ngx) {
         return ngx.workerConnections(function(ngx) { return 1024; });
       }),
@@ -50,6 +51,8 @@ test('Nginx can do one of each', function(t) {
               ngx.listen(function(ngx)          { return 80; }),
               ngx.listenSsl(function(ngx)       { return [1443, {default: true}]; }),
               ngx.include(function(ngx)         { return '/etc/nginx/routes/sub.example.com'; }),
+
+              ng.tryFiles('maintenance.html', '$uri', '$uri/index.html', '$uri.html', '@router'),
 
               ngx.location('/nginx_status', function(ngx) {
                 return [
@@ -83,6 +86,7 @@ test('Nginx can do one of each', function(t) {
   var lines = conf.split('\n');
 
   t.not(conf.length, 0);
+  t.not(lines = findLine(lines, /^user [a-z0-9]+ staff;$/i), false);
   t.not(lines = findLine(lines, /^worker_processes 2;$/), false);
   t.not(lines = findLine(lines, /^events [{]$/), false);                                                              // }
   t.not(lines = findLine(lines, /^  worker_connections 1024;$/), false);
@@ -105,6 +109,7 @@ test('Nginx can do one of each', function(t) {
   t.not(lines = findLine(lines, /^    ssl_certificate [/]Users[/]sparksb[/]tmp[/]nginx[/]certs[/]server.crt;$/), false);
   t.not(lines = findLine(lines, /^    ssl_certificate_key [/]Users[/]sparksb[/]tmp[/]nginx[/]certs[/]server.key;$/), false);
   t.not(lines = findLine(lines, /^    include [/]etc[/]nginx[/]routes[/]sub[.]example[.]com;$/), false);
+  t.not(lines = findLine(lines, /^    try_files maintenance.html [$]uri [$]uri[/]index.html [$]uri.html @router;$/), false);
   t.not(lines = findLine(lines, /^    location [/]nginx_status [{]$/), false);                                        // }
   t.not(lines = findLine(lines, /^      internal;$/), false);
   t.not(lines = findLine(lines, /^      proxy_connect_timeout 5000;$/), false);
